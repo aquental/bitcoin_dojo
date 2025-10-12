@@ -1,6 +1,6 @@
 #[cfg(test)]
-use bitcoin_dojo::ecc::field::{FieldElement, Pow};
 use bitcoin_dojo::ecc::constants::SECP256K1_P;
+use bitcoin_dojo::ecc::field::{FieldElement, Pow};
 use num_bigint::BigUint;
 
 #[test]
@@ -57,7 +57,7 @@ fn test_to_bytes_fixed() {
     let fe = FieldElement::new(BigUint::from(0x1234u32));
     let bytes = fe.to_bytes_fixed(4);
     assert_eq!(bytes, vec![0x00, 0x00, 0x12, 0x34]);
-    
+
     // Test truncation
     let bytes = fe.to_bytes_fixed(1);
     assert_eq!(bytes, vec![0x34]);
@@ -171,7 +171,11 @@ fn test_mul_basic() {
 #[test]
 fn test_mul_with_modulo() {
     // Test multiplication that requires modular reduction
-    let large_val = BigUint::parse_bytes(b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E", 16).unwrap();
+    let large_val = BigUint::parse_bytes(
+        b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
+        16,
+    )
+    .unwrap();
     let fe1 = FieldElement::new(large_val);
     let fe2 = FieldElement::from_u64(2);
     let result = &fe1 * &fe2;
@@ -214,7 +218,7 @@ fn test_div_with_inverse() {
     let fe1 = FieldElement::from_u64(1);
     let fe2 = FieldElement::from_u64(2);
     let result = &fe1 / &fe2;
-    
+
     // Verify: result * fe2 should equal fe1
     let verification = &result * &fe2;
     assert_eq!(verification, fe1);
@@ -240,7 +244,7 @@ fn test_div_by_zero() {
 fn test_inverse() {
     let fe = FieldElement::from_u64(3);
     let inverse = fe.inverse().unwrap();
-    
+
     // Verify: fe * inverse should equal 1
     let product = &fe * &inverse;
     assert_eq!(*product.value(), BigUint::from(1u32));
@@ -296,7 +300,6 @@ fn test_pow_owned() {
     assert_eq!(*result.value(), BigUint::from(8u32));
 }
 
-
 #[test]
 fn test_sqrt() {
     // Test with a known quadratic residue
@@ -333,7 +336,7 @@ fn test_large_numbers() {
     // Test operations with large numbers
     let sum = &fe1 + &fe2;
     assert!(*sum.value() < *SECP256K1_P);
-    
+
     let product = &fe1 * &fe2;
     assert!(*product.value() < *SECP256K1_P);
 }
@@ -369,7 +372,7 @@ fn test_field_arithmetic_properties() {
 fn test_additive_identity() {
     let fe = FieldElement::from_u64(42);
     let zero = FieldElement::zero();
-    
+
     assert_eq!(&fe + &zero, fe);
     assert_eq!(&zero + &fe, fe);
 }
@@ -378,7 +381,7 @@ fn test_additive_identity() {
 fn test_multiplicative_identity() {
     let fe = FieldElement::from_u64(42);
     let one = FieldElement::one();
-    
+
     assert_eq!(&one * &fe, fe);
 }
 
@@ -386,7 +389,7 @@ fn test_multiplicative_identity() {
 fn test_additive_inverse() {
     let fe = FieldElement::from_u64(42);
     let zero = FieldElement::zero();
-    
+
     // fe + (-fe) should equal zero
     // In modular arithmetic, -fe = p - fe
     let neg_fe = FieldElement::new(&*SECP256K1_P - fe.value());
@@ -399,7 +402,7 @@ fn test_distributivity() {
     let a = FieldElement::from_u64(3);
     let b = FieldElement::from_u64(4);
     let c = FieldElement::from_u64(5);
-    
+
     // Test: a * (b + c) = a * b + a * c
     let left = &a * &(&b + &c);
     let right = &(&a * &b) + &(&a * &c);
@@ -411,11 +414,11 @@ fn test_secp256k1_specific_values() {
     // Test with secp256k1-specific values
     let p_minus_1 = FieldElement::new(&*SECP256K1_P - BigUint::from(1u32));
     let one = FieldElement::one();
-    
+
     // (p-1) + 1 should equal 0
     let result = &p_minus_1 + &one;
     assert!(result.is_zero());
-    
+
     // (p-1) * (p-1) should equal 1 (since (p-1) ≡ -1 mod p)
     let result = &p_minus_1 * &p_minus_1;
     assert_eq!(result, one);
@@ -427,11 +430,11 @@ fn test_modular_reduction_consistency() {
     let val1 = BigUint::from(5u32);
     let val2 = &*SECP256K1_P + BigUint::from(5u32);
     let val3 = &*SECP256K1_P * BigUint::from(2u32) + BigUint::from(5u32);
-    
+
     let fe1 = FieldElement::new(val1);
     let fe2 = FieldElement::new(val2);
     let fe3 = FieldElement::new(val3);
-    
+
     assert_eq!(fe1, fe2);
     assert_eq!(fe2, fe3);
 }
@@ -457,11 +460,11 @@ fn test_hex_roundtrip() {
 fn test_performance_large_exponent() {
     let base = FieldElement::from_u64(2);
     let large_exp = BigUint::from(1000u32);
-    
+
     let start = std::time::Instant::now();
     let result = (&base).pow(&large_exp);
     let duration = start.elapsed();
-    
+
     // Should complete quickly (modular exponentiation is efficient)
     assert!(duration.as_millis() < 100);
     assert!(*result.value() < *SECP256K1_P);
@@ -471,18 +474,18 @@ fn test_performance_large_exponent() {
 fn test_edge_case_zero_operations() {
     let zero = FieldElement::zero();
     let fe = FieldElement::from_u64(42);
-    
+
     // Zero operations
     assert_eq!(&zero + &fe, fe);
     assert_eq!(&fe + &zero, fe);
     assert_eq!(&zero * &fe, zero);
     assert_eq!(&fe * &zero, zero);
     assert_eq!(&fe - &fe, zero);
-    
+
     // Zero power
     let result = (zero).pow(5u32);
     assert!(result.is_zero());
-    
+
     // Anything to power 0 equals 1
     let result = (fe).pow(0u32);
     assert_eq!(result, FieldElement::one());
@@ -492,12 +495,12 @@ fn test_edge_case_zero_operations() {
 fn test_edge_case_one_operations() {
     let one = FieldElement::one();
     let fe = FieldElement::from_u64(42);
-    
+
     // One operations
     assert_eq!(&one * &fe, fe);
     assert_eq!(&fe * &one, fe);
     assert_eq!(&fe / &one, fe);
-    
+
     // One powers
     let result = (one.clone()).pow(1000u32);
     assert_eq!(result, one);
@@ -508,10 +511,10 @@ fn test_field_element_ordering() {
     let fe1 = FieldElement::from_u64(5);
     let fe2 = FieldElement::from_u64(10);
     let fe3 = FieldElement::from_u64(5);
-    
+
     assert_eq!(fe1, fe3);
     assert_ne!(fe1, fe2);
-    
+
     // Test that values are properly reduced
     let fe4 = FieldElement::new(&*SECP256K1_P + BigUint::from(5u32));
     assert_eq!(fe1, fe4);
@@ -522,20 +525,20 @@ fn test_secp256k1_generator_coordinates() {
     // Test with actual secp256k1 generator point coordinates
     let gx_hex = "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
     let gy_hex = "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8";
-    
+
     let gx = FieldElement::from_hex(gx_hex).unwrap();
     let gy = FieldElement::from_hex(gy_hex).unwrap();
-    
+
     // These should be valid field elements
     assert!(*gx.value() < *SECP256K1_P);
     assert!(*gy.value() < *SECP256K1_P);
-    
+
     // Test that they satisfy the curve equation: y² = x³ + 7
     let y_squared = (gy).pow(2u32);
     let x_cubed = (gx).pow(3u32);
     let seven = FieldElement::from_u64(7);
     let right_side = &x_cubed + &seven;
-    
+
     assert_eq!(y_squared, right_side);
 }
 
@@ -545,7 +548,7 @@ fn test_field_element_max_value() {
     let max_val = &*SECP256K1_P - BigUint::from(1u32);
     let fe = FieldElement::new(max_val.clone());
     assert_eq!(*fe.value(), max_val);
-    
+
     // Adding 1 should wrap to 0
     let one = FieldElement::one();
     let result = &fe + &one;
@@ -556,13 +559,13 @@ fn test_field_element_max_value() {
 fn test_mixed_operation_types() {
     let fe1 = FieldElement::from_u64(3);
     let fe2 = FieldElement::from_u64(4);
-    
+
     // Test mixing owned and borrowed operations
     let result1 = &fe1 + &fe2;
     let result2 = fe1.clone() + &fe2;
     let result3 = &fe1 + fe2.clone();
     let result4 = fe1.clone() + fe2.clone();
-    
+
     assert_eq!(result1, result2);
     assert_eq!(result2, result3);
     assert_eq!(result3, result4);

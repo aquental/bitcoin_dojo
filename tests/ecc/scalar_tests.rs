@@ -189,7 +189,7 @@ fn test_scalar_bytes_edge_cases() {
 fn test_scalar_equality() {
     let a = Scalar::new(BigUint::from(5u32));
     let b = Scalar::new(BigUint::from(5u32));
-    
+
     // Test with modular reduction
     use bitcoin_dojo::ecc::constants::SECP256K1_N;
     let c = Scalar::new(&*SECP256K1_N + BigUint::from(5u32)); // Should reduce to 5
@@ -203,7 +203,7 @@ fn test_scalar_getters() {
     let scalar = Scalar::new(BigUint::from(42u32));
 
     assert_eq!(*scalar.value(), BigUint::from(42u32));
-    
+
     use bitcoin_dojo::ecc::constants::SECP256K1_N;
     assert_eq!(*scalar.modulus(), *SECP256K1_N);
 }
@@ -299,12 +299,12 @@ fn test_scalar_field_properties() {
 #[test]
 fn test_scalar_modular_arithmetic() {
     use bitcoin_dojo::ecc::constants::SECP256K1_N;
-    
+
     // Test that operations are properly reduced modulo N
     let half_n = &*SECP256K1_N / BigUint::from(2u32);
     let a = Scalar::new(half_n.clone());
     let b = Scalar::new(half_n.clone());
-    
+
     // Adding two halves should give approximately N, which reduces to ~0
     let sum = &a + &b;
     // The exact result depends on whether N is even or odd
@@ -339,19 +339,19 @@ fn test_scalar_owned_vs_borrowed() {
     let b = Scalar::new(BigUint::from(5u32));
 
     // Test the supported combinations of owned/borrowed operations
-    let result1 = &a + &b;        // borrowed + borrowed
+    let result1 = &a + &b; // borrowed + borrowed
     let result2 = a.clone() + b.clone(); // owned + owned
 
     assert_eq!(result1, result2);
 
     // Same for multiplication
-    let result1 = &a * &b;        // borrowed + borrowed
+    let result1 = &a * &b; // borrowed + borrowed
     let result2 = a.clone() * b.clone(); // owned + owned
 
     assert_eq!(result1, result2);
 
     // Same for subtraction
-    let result1 = &a - &b;        // borrowed + borrowed
+    let result1 = &a - &b; // borrowed + borrowed
     let result2 = a.clone() - b.clone(); // owned + owned
 
     assert_eq!(result1, result2);
@@ -501,19 +501,19 @@ fn test_scalar_performance() {
     let b = Scalar::new(BigUint::from(67890u32));
 
     let start = std::time::Instant::now();
-    
+
     // Perform many operations
     let mut result = a.clone();
     for _ in 0..1000 {
         result = &result + &b;
         result = &result * &a;
     }
-    
+
     let duration = start.elapsed();
-    
+
     // Should complete quickly (less than 1 second)
     assert!(duration.as_secs() < 1);
-    
+
     // Result should still be valid
     use bitcoin_dojo::ecc::constants::SECP256K1_N;
     assert!(result.value < *SECP256K1_N);
@@ -558,7 +558,7 @@ fn test_scalar_arithmetic_consistency() {
 #[test]
 fn test_scalar_edge_case_operations() {
     use bitcoin_dojo::ecc::constants::SECP256K1_N;
-    
+
     let zero = Scalar::zero();
     let one = Scalar::one();
     let max_val = Scalar::new(&*SECP256K1_N - BigUint::from(1u32));
