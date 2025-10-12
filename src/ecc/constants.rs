@@ -2,6 +2,8 @@ use lazy_static::lazy_static;
 /// src/ecc/constants.rs
 use num_bigint::BigUint;
 
+use crate::ecc::field::FieldElement;
+
 // secp256k1 curve parameters
 pub const SECP256K1_P_HEX: &str =
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
@@ -27,4 +29,10 @@ lazy_static! {
         BigUint::parse_bytes(SECP256K1_A_HEX.as_bytes(), 16).unwrap();
     pub static ref SECP256K1_B: BigUint =
         BigUint::parse_bytes(SECP256K1_B_HEX.as_bytes(), 16).unwrap();
+    pub static ref SECP256K1_A_FE: FieldElement = FieldElement::new(SECP256K1_A.clone());
+    pub static ref SECP256K1_B_FE: FieldElement = FieldElement::new(SECP256K1_B.clone());
+    pub static ref SECP256K1_A_FE_OPT: Option<FieldElement> =
+        Some(FieldElement::new(SECP256K1_A.clone()));
+    pub static ref SECP256K1_B_FE_OPT: Option<FieldElement> =
+        Some(FieldElement::new(SECP256K1_B.clone()));
 }

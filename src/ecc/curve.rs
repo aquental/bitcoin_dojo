@@ -1,6 +1,11 @@
+use crate::ecc::constants::SECP256K1_A;
+use crate::ecc::constants::SECP256K1_B;
+use crate::ecc::constants::SECP256K1_GX;
+use crate::ecc::constants::SECP256K1_GY;
 /// src/ecc/curve.rs
-use crate::ecc::field::{FieldElement, Pow};
+use crate::ecc::field::FieldElement;
 use crate::ecc::scalar::Scalar;
+
 use num_bigint::BigUint;
 use std::ops::{Add, Mul};
 
@@ -8,8 +13,6 @@ use std::ops::{Add, Mul};
 pub struct Point {
     x: Option<FieldElement>,
     y: Option<FieldElement>,
-    a: FieldElement,
-    b: FieldElement,
 }
 
 impl Point {
@@ -21,38 +24,35 @@ impl Point {
     /// # Panics
     ///
     /// Panics if the point is not on the curve.
-    pub fn new(
-        x: Option<FieldElement>,
-        y: Option<FieldElement>,
-        a: FieldElement,
-        b: FieldElement,
-    ) -> Self {
+    pub fn new(x: Option<FieldElement>, y: Option<FieldElement>) -> Self {
         match (x, y) {
             (Some(x), Some(y)) => {
-                let x_cubed = x.pow(BigUint::from(3u32));
+                let x_cubed = x.pow(&BigUint::from(3u32));
+                let a = FieldElement::new(SECP256K1_A.clone());
                 let ax = &a * &x;
+                let b = FieldElement::new(SECP256K1_B.clone());
                 let right_side = &(&x_cubed + &ax) + &b;
-                let y_squared = y.pow(BigUint::from(2u32));
+                let y_squared = y.pow(&BigUint::from(2u32));
                 if y_squared != right_side {
-                    panic!("({x:?}, {y:?}) is not on the curve")
+                    panic!("({x:?}, {y:?}) is not on the secp256k1 curve")
                 }
                 Self {
                     x: Some(x),
                     y: Some(y),
-                    a,
-                    b,
                 }
             }
-            (None, None) => Self {
-                x: None,
-                y: None,
-                a,
-                b,
-            },
+            (None, None) => Self { x: None, y: None },
             _ => {
                 panic!("Invalid parameters to Point::new()")
             }
         }
+    }
+
+    /// Returns a new point representing the generator point (G) of the secp256k1 curve.
+    pub fn generator() -> Self {
+        let gx = FieldElement::new(SECP256K1_GX.clone());
+        let gy = FieldElement::new(SECP256K1_GY.clone());
+        Point::new(Some(gx), Some(gy))
     }
 
     /// Returns a reference to the x-coordinate of the point, if it exists.
@@ -67,34 +67,40 @@ impl Point {
         &self.y
     }
 
-    /// Returns a reference to the coefficient `a` of the curve.
-    pub fn a(&self) -> &FieldElement {
-        &self.a
+    /// Returns a reference to the coefficient `a` of the curve, wrapped in an Option.
+    /// Returns Some(a) for points on the secp256k1 curve, None for the point at infinity.
+    // pub fn a(&self) -> &Option<FieldElement> {
+    //     if self.is_infinity() {
+    //         &None
+    //     } else {
+    //         &SECP256K1_A_FE_OPT
+    //     }
+    // }
+    pub fn a(&self) -> FieldElement {
+        FieldElement::new(SECP256K1_A.clone())
     }
 
-    /// Returns a reference to the coefficient `b` of the curve.
-    pub fn b(&self) -> &FieldElement {
-        &self.b
+    /// Returns a reference to the coefficient `b` of the curve, wrapped in an Option.
+    /// Returns Some(b) for points on the secp256k1 curve, None for the point at infinity.
+    // pub fn b(&self) -> &Option<FieldElement> {
+    //     if self.is_infinity() {
+    //         &None
+    //     } else {
+    //         &SECP256K1_B_FE_OPT
+    //     }
+    // }
+    pub fn b(&self) -> FieldElement {
+        FieldElement::new(SECP256K1_B.clone())
     }
 
     /// Returns the point at infinity on the curve defined by coefficients `a` and `b`.
-    pub fn infinity(a: FieldElement, b: FieldElement) -> Self {
-        Self {
-            x: None,
-            y: None,
-            a,
-            b,
-        }
+    pub fn infinity() -> Self {
+        Self { x: None, y: None }
     }
 
     /// Returns a new point at infinity with the same curve parameters as `self`.
     pub fn new_infinity(&self) -> Self {
-        Self {
-            x: None,
-            y: None,
-            a: self.a.clone(),
-            b: self.b.clone(),
-        }
+        Self { x: None, y: None }
     }
 
     /// Returns true if the point is the point at infinity, false otherwise.
@@ -144,7 +150,7 @@ impl PartialEq for Point {
             (None, None) => true,
             _ => false,
         };
-        x_eq && y_eq && self.a == other.a && self.b == other.b
+        x_eq && y_eq
     }
 }
 
@@ -212,10 +218,6 @@ impl Add for &Point {
     ///
     /// If the points are negatives of each other, the result will be the point at infinity.
     fn add(self, other: Self) -> Point {
-        if (self.a != other.a) | (self.b != other.b) {
-            panic!("Points {self:?}, {other:?} are not on the same curve.");
-        }
-
         if self.x.is_none() {
             // self is point at infinity
             return other.clone();
@@ -244,15 +246,16 @@ impl Add for &Point {
             }
 
             // Point doubling: s = (3x1**2 + a) / (2y1)
-            let three = FieldElement::new(BigUint::from(3u32), x1.prime().clone());
-            let two = FieldElement::new(BigUint::from(2u32), x1.prime().clone());
-            let x1_squared = x1.pow(BigUint::from(2u32));
-            let numerator = &(&three * &x1_squared) + &self.a;
+            let three = FieldElement::new(BigUint::from(3u32));
+            let two = FieldElement::new(BigUint::from(2u32));
+            let x1_squared = x1.pow(&BigUint::from(2u32));
+            let a = FieldElement::new(SECP256K1_A.clone());
+            let numerator = &(&three * &x1_squared) + &a;
             let denominator = &two * y1;
             let s = &numerator / &denominator;
 
             // x3 = s**2 - 2x1
-            let s_squared = s.pow(BigUint::from(2u32));
+            let s_squared = s.pow(&BigUint::from(2u32));
             let two_x1 = &two * x1;
             let x3 = &s_squared - &two_x1;
 
@@ -260,7 +263,7 @@ impl Add for &Point {
             let x1_minus_x3 = x1 - &x3;
             let y3 = &(&s * &x1_minus_x3) - y1;
 
-            return Point::new(Some(x3), Some(y3), self.a.clone(), self.b.clone());
+            return Point::new(Some(x3), Some(y3));
         }
 
         // Case: P1 != P2
@@ -270,14 +273,14 @@ impl Add for &Point {
         let s = &numerator / &denominator;
 
         // x3 = s**2 - x1 - x2
-        let s_squared = s.pow(BigUint::from(2u32));
+        let s_squared = s.pow(&BigUint::from(2u32));
         let x3 = &(&s_squared - x1) - x2;
 
         // y3 = s(x1 - x3) - y1
         let x1_minus_x3 = x1 - &x3;
         let y3 = &(&s * &x1_minus_x3) - y1;
 
-        Point::new(Some(x3), Some(y3), self.a.clone(), self.b.clone())
+        Point::new(Some(x3), Some(y3))
     }
 }
 
