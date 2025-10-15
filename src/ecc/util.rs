@@ -1,6 +1,7 @@
 /// src/ecc/util.rs
 use rand::RngCore;
-use sha2::{Digest, Sha256};
+use ripemd::{Digest as RipemdDigest, Ripemd160};
+use sha2::Sha256;
 
 /// Computes the SHA-256 hash of the given input data and returns the result as a 32-byte array.
 ///
@@ -45,4 +46,51 @@ pub fn secure_random_scalar() -> num_bigint::BigUint {
             return candidate;
         }
     }
+}
+
+/// Computes the HASH256 (double SHA256) of the given input data.
+///
+/// HASH256 is defined as SHA256(SHA256(data)) and is commonly used in Bitcoin
+/// for transaction IDs, block hashes, and other cryptographic operations.
+/// The output is always 32 bytes.
+///
+/// # Example
+///
+/// ```
+/// use bitcoin_dojo::ecc::util::hash256;
+///
+/// let data = b"hello world";
+/// let hash = hash256(data);
+/// assert_eq!(hash.len(), 32);
+/// ```
+pub fn hash256(data: &[u8]) -> [u8; 32] {
+    // First SHA256
+    let first_hash = sha256(data);
+
+    // Second SHA256 on the result
+    sha256(&first_hash)
+}
+
+/// Computes the HASH160 of the given input data.
+///
+/// HASH160 is defined as RIPEMD160(SHA256(data)) and is commonly used in Bitcoin
+/// for generating addresses from public keys. The output is always 20 bytes.
+///
+/// # Example
+///
+/// ```
+/// use bitcoin_dojo::ecc::util::hash160;
+///
+/// let data = b"hello world";
+/// let hash = hash160(data);
+/// assert_eq!(hash.len(), 20);
+/// ```
+pub fn hash160(data: &[u8]) -> [u8; 20] {
+    // First compute SHA256
+    let sha256_hash = sha256(data);
+
+    // Then compute RIPEMD160 of the SHA256 hash
+    let mut hasher = Ripemd160::new();
+    hasher.update(sha256_hash);
+    hasher.finalize().into()
 }

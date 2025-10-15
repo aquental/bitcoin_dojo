@@ -8,6 +8,8 @@ pub mod ecc {
     pub mod util;
 }
 
+pub mod utils;
+
 // Re-export the main types and functions for easy access
 pub use ecc::curve::Point;
 pub use ecc::ecdsa::{Signature, sign, verify};
