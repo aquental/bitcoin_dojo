@@ -21,9 +21,8 @@ impl PowExponent for u32 {
         thread_local! {
             static U32_CACHE: BigUint = BigUint::from(0u32);
         }
-        U32_CACHE.with(|cache| {
-            let mut cache = cache.clone();
-            cache = BigUint::from(*self);
+        U32_CACHE.with(|_cache| {
+            let cache = BigUint::from(*self);
             Box::leak(Box::new(cache))
         })
     }

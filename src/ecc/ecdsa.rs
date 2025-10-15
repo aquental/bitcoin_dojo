@@ -214,3 +214,183 @@ pub fn verify(public_key: &PublicKey, message_hash: &[u8], signature: &Signature
     let r_computed = Scalar::new(r_x.unwrap());
     r_computed == *r
 }
+
+impl Signature {
+    /// Encode the signature in Distinguished Encoding Rules (DER) format
+    ///
+    /// DER format for ECDSA signatures:
+    /// SEQUENCE {
+    ///   r INTEGER,
+    ///   s INTEGER
+    /// }
+    pub fn to_der(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+
+        // Encode r and s as DER INTEGERs
+        let r_bytes = self.encode_integer(&self.r);
+        let s_bytes = self.encode_integer(&self.s);
+
+        // Construct SEQUENCE: 0x30 [length] [r_bytes] [s_bytes]
+        result.push(0x30); // SEQUENCE tag
+        let content_length = r_bytes.len() + s_bytes.len();
+        self.encode_length(&mut result, content_length);
+        result.extend_from_slice(&r_bytes);
+        result.extend_from_slice(&s_bytes);
+
+        result
+    }
+
+    /// Parse a DER-encoded signature
+    ///
+    /// Returns None if the DER encoding is invalid
+    pub fn from_der(der_bytes: &[u8]) -> Option<Self> {
+        // Check for minimum length (SEQUENCE tag + length byte + two INTEGERs)
+        if der_bytes.len() < 6 || der_bytes[0] != 0x30 {
+            return None;
+        }
+
+        // Decode SEQUENCE length
+        let (seq_length, length_bytes) = Self::decode_length(&der_bytes[1..])?;
+        if seq_length + 1 + length_bytes != der_bytes.len() {
+            return None; // Length mismatch
+        }
+
+        let mut offset = 1 + length_bytes;
+
+        // Decode r INTEGER
+        let (r_value, r_bytes_consumed) = Self::decode_integer(&der_bytes[offset..])?;
+        offset += r_bytes_consumed;
+
+        // Decode s INTEGER
+        let (s_value, s_bytes_consumed) = Self::decode_integer(&der_bytes[offset..])?;
+        offset += s_bytes_consumed;
+
+        // Ensure all bytes were consumed
+        if offset != der_bytes.len() {
+            return None;
+        }
+
+        // Create Scalars, ensuring they are valid (in range [1, n-1])
+        let n = &*SECP256K1_N;
+        if r_value == BigUint::from(0u32)
+            || r_value >= *n
+            || s_value == BigUint::from(0u32)
+            || s_value >= *n
+        {
+            return None;
+        }
+
+        let r = Scalar::new(r_value);
+        let s = Scalar::new(s_value);
+        Some(Signature { r, s })
+    }
+
+    /// Encode a scalar as a DER INTEGER
+    fn encode_integer(&self, scalar: &Scalar) -> Vec<u8> {
+        let mut bytes = scalar.value().to_bytes_be();
+
+        // Remove leading zeros for minimal encoding
+        while bytes.len() > 1 && bytes[0] == 0 {
+            bytes.remove(0);
+        }
+
+        // Prepend 0x00 if the most significant bit is 1 (to ensure positive integer)
+        if !bytes.is_empty() && bytes[0] & 0x80 != 0 {
+            bytes.insert(0, 0x00);
+        }
+
+        let mut result = Vec::new();
+        result.push(0x02); // INTEGER tag
+        self.encode_length(&mut result, bytes.len());
+        result.extend_from_slice(&bytes);
+
+        result
+    }
+
+    /// Encode length in DER format
+    fn encode_length(&self, output: &mut Vec<u8>, length: usize) {
+        if length < 128 {
+            // Short form: single byte
+            output.push(length as u8);
+        } else {
+            // Long form: 0x80 | num_bytes, followed by length bytes
+            let length_bytes = Self::length_to_bytes(length);
+            output.push(0x80 | (length_bytes.len() as u8));
+            output.extend_from_slice(&length_bytes);
+        }
+    }
+
+    /// Convert length to minimal byte representation
+    fn length_to_bytes(length: usize) -> Vec<u8> {
+        let mut bytes = BigUint::from(length).to_bytes_be();
+        // Remove leading zeros
+        while bytes.len() > 1 && bytes[0] == 0 {
+            bytes.remove(0);
+        }
+        bytes
+    }
+
+    /// Decode DER length field
+    /// Returns (length, bytes_consumed)
+    fn decode_length(bytes: &[u8]) -> Option<(usize, usize)> {
+        if bytes.is_empty() {
+            return None;
+        }
+
+        let first = bytes[0];
+        if first & 0x80 == 0 {
+            // Short form: single byte
+            Some((first as usize, 1))
+        } else {
+            // Long form: first byte indicates number of length bytes
+            let num_bytes = (first & 0x7F) as usize;
+            if num_bytes == 0 || bytes.len() < num_bytes + 1 {
+                return None;
+            }
+            let length_bytes = &bytes[1..num_bytes + 1];
+            let length = BigUint::from_bytes_be(length_bytes)
+                .to_u64_digits()
+                .get(0)
+                .copied()
+                .map(|x| x as usize)?;
+            Some((length, num_bytes + 1))
+        }
+    }
+
+    /// Decode DER INTEGER
+    /// Returns (value, bytes_consumed)
+    fn decode_integer(bytes: &[u8]) -> Option<(BigUint, usize)> {
+        if bytes.len() < 2 || bytes[0] != 0x02 {
+            return None; // Must start with INTEGER tag
+        }
+
+        // Decode length
+        let (length, length_bytes) = Self::decode_length(&bytes[1..])?;
+        let offset = 1 + length_bytes;
+        if offset + length > bytes.len() {
+            return None; // Not enough bytes
+        }
+
+        let value_bytes = &bytes[offset..offset + length];
+        if value_bytes.is_empty() {
+            return None; // Empty integer
+        }
+
+        // DER encoding rules for positive integers:
+        // - No unnecessary leading zeros (except when needed for sign bit)
+        // - If high bit is set, must have 0x00 padding to indicate positive
+        
+        // Check for improper padding
+        if value_bytes.len() > 1 && value_bytes[0] == 0x00 {
+            // If there's a leading 0x00, the next byte must have high bit set
+            // (otherwise the 0x00 is unnecessary)
+            if value_bytes[1] & 0x80 == 0 {
+                return None; // Unnecessary leading zero
+            }
+        }
+        
+        // Parse the integer value
+        let value = BigUint::from_bytes_be(value_bytes);
+        Some((value, offset + length))
+    }
+}
