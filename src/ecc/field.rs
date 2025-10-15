@@ -1,6 +1,7 @@
 /// src/ecc/field.rs
 use crate::ecc::constants::SECP256K1_P;
 use num_bigint::BigUint;
+use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use std::cmp::Ordering;
 use std::fmt;
@@ -162,6 +163,10 @@ impl FieldElement {
     // A boolean indicating whether the field element is zero.
     pub fn is_none(&self) -> bool {
         self.value.is_zero()
+    }
+
+    pub fn is_odd(&self) -> bool {
+        &self.value % BigUint::from_u32(2).unwrap() == BigUint::from_u32(1).unwrap()
     }
 
     /// Returns a reference to the value of the field element.
