@@ -1,3 +1,9 @@
+use num_bigint::BigUint;
+use num_traits::FromPrimitive;
+
+use crate::ecc::constants::SECP256K1_B_FE_OPT;
+use crate::ecc::field::FieldElement;
+
 use super::curve::Point;
 /// src/ecc/keys.rs
 use super::scalar::Scalar;
@@ -150,5 +156,89 @@ impl PublicKey {
         }
 
         result
+    }
+
+    /// Parse a SEC format public key (compressed or uncompressed)
+    /// Compressed format: 33 bytes [0x02/0x03, x_coordinate (32 bytes)]
+    /// Uncompressed format: 65 bytes [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    pub fn parse(sec_bytes: &[u8]) -> Result<Self, &'static str> {
+        match sec_bytes.len() {
+            33 => Self::parse_compressed(sec_bytes),
+            65 => Self::parse_uncompressed(sec_bytes),
+            _ => Err(
+                "Invalid SEC format length: must be 33 bytes (compressed) or 65 bytes (uncompressed)",
+            ),
+        }
+    }
+
+    /// Parse an uncompressed SEC format public key
+    /// Format: [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    fn parse_uncompressed(sec_bytes: &[u8]) -> Result<Self, &'static str> {
+        if sec_bytes.len() != 65 {
+            return Err("Invalid uncompressed SEC format: must be 65 bytes");
+        }
+        if sec_bytes[0] != 0x04 {
+            return Err("Invalid uncompressed SEC format: must start with 0x04");
+        }
+
+        // Extract x and y coordinates (32 bytes each)
+        let x_bytes = &sec_bytes[1..33];
+        let y_bytes = &sec_bytes[33..65];
+
+        // Convert bytes to FieldElement
+        let x = FieldElement::from_bytes(x_bytes);
+        let y = FieldElement::from_bytes(y_bytes);
+
+        // Create Point and verify it's on the curve
+        let point = Point::new(Some(x), Some(y));
+        if !point.is_on_curve() {
+            return Err("Point is not on the secp256k1 curve");
+        }
+
+        Ok(PublicKey { point })
+    }
+
+    /// Parse a compressed SEC format public key
+    /// Format: [0x02/0x03, x_coordinate (32 bytes)]
+    fn parse_compressed(sec_bytes: &[u8]) -> Result<Self, &'static str> {
+        if sec_bytes.len() != 33 {
+            return Err("Invalid compressed SEC format: must be 33 bytes");
+        }
+        let prefix = sec_bytes[0];
+        if prefix != 0x02 && prefix != 0x03 {
+            return Err("Invalid compressed SEC format: must start with 0x02 or 0x03");
+        }
+
+        // Extract x-coordinate
+        let x_bytes = &sec_bytes[1..33];
+        let x = FieldElement::from_bytes(x_bytes);
+
+        // secp256k1 curve equation: y^2 = x^3 + 7 mod p
+        // Compute y^2 = x^3 + 7
+        let x_cubed = x.pow(&BigUint::from_u32(3).unwrap());
+        let y_squared = x_cubed + &SECP256K1_B_FE_OPT.clone().unwrap();
+
+        // Compute square root mod p to get y
+        let y = y_squared.sqrt();
+
+        // Choose the y-coordinate based on the prefix (0x02 for even, 0x03 for odd)
+        let is_y_odd = prefix == 0x03;
+        let y_is_odd = y.is_odd();
+        let p = y_squared.prime();
+        let selected_y = if is_y_odd == y_is_odd {
+            y
+        } else {
+            // Negate y mod p to get the other root
+            let neg_y = *&p - y.value();
+            FieldElement::from_big_uint(&neg_y)
+        };
+
+        // Create Point and verify it's on the curve
+        let point = Point::new(Some(x), Some(selected_y));
+        if !point.is_on_curve() {
+            return Err("Point is not on the secp256k1 curve");
+        }
+
+        Ok(PublicKey { point })
     }
 }

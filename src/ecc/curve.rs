@@ -1,5 +1,6 @@
 use crate::ecc::constants::SECP256K1_A;
 use crate::ecc::constants::SECP256K1_B;
+use crate::ecc::constants::SECP256K1_B_FE_OPT;
 use crate::ecc::constants::SECP256K1_GX;
 use crate::ecc::constants::SECP256K1_GY;
 /// src/ecc/curve.rs
@@ -7,6 +8,7 @@ use crate::ecc::field::FieldElement;
 use crate::ecc::scalar::Scalar;
 
 use num_bigint::BigUint;
+use num_traits::FromPrimitive;
 use std::ops::{Add, Mul};
 
 #[derive(Debug, Clone)]
@@ -130,6 +132,33 @@ impl Point {
             (Some(x1), Some(x2), Some(y1), Some(y2)) => x1 == x2 && y1 == y2,
             (None, None, None, None) => true,
             _ => false,
+        }
+    }
+
+    /// Checks if the point lies on the secp256k1 curve.
+    /// The curve equation is y^2 = x^3 + 7 mod p, where p is the secp256k1 prime.
+    /// The point at infinity (x = None, y = None) is considered on the curve.
+    pub fn is_on_curve(&self) -> bool {
+        match (&self.x, &self.y) {
+            (None, None) => {
+                // Point at infinity is on the curve
+                true
+            }
+            (Some(x), Some(y)) => {
+                // Compute left-hand side: y^2
+                let y_squared = y * y;
+
+                // Compute right-hand side: x^3 + 7
+                let x_cubed = x.pow(&BigUint::from_u32(3).unwrap());
+                let rhs = &x_cubed + &SECP256K1_B_FE_OPT.clone().unwrap();
+
+                // Check if y^2 == x^3 + 7 mod p
+                y_squared == rhs
+            }
+            _ => {
+                // Invalid point: one coordinate is None but not both
+                false
+            }
         }
     }
 }

@@ -82,6 +82,10 @@ impl FieldElement {
         Self::new(BigUint::from(value))
     }
 
+    pub fn from_big_uint(value: &BigUint) -> Self {
+        Self::new(value.clone())
+    }
+
     /// Convenience constructor for hex strings.
     ///
     /// # Arguments
