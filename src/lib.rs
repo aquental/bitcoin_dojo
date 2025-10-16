@@ -8,9 +8,16 @@ pub mod ecc {
     pub mod util;
 }
 
-pub mod utils;
+pub mod utils {
+    pub mod address_types;
+    pub mod base58;
+    pub mod hash160;
+    pub mod hash256;
+}
 
 // Re-export the main types and functions for easy access
 pub use ecc::curve::Point;
 pub use ecc::ecdsa::{Signature, sign, verify};
 pub use ecc::keys::{PrivateKey, PublicKey};
+pub use ecc::util::{secure_random_bytes, sha256};
+pub use utils::hash160::hash160;

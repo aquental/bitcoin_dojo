@@ -3,6 +3,9 @@ use num_traits::FromPrimitive;
 
 use crate::ecc::constants::SECP256K1_B_FE_OPT;
 use crate::ecc::field::FieldElement;
+use crate::utils::address_types::{AddressType, Network};
+use crate::utils::base58::encode_base58_check;
+use crate::utils::hash160::hash160;
 
 use super::curve::Point;
 /// src/ecc/keys.rs
@@ -81,10 +84,17 @@ impl PublicKey {
     pub fn point(&self) -> &Point {
         &self.point
     }
+
     /// Serialize the public key in SEC format
+    ///
     /// Returns a 33-byte array for compressed format or 65-byte Vec for uncompressed format
+    ///
     /// Compressed format: [0x02/0x03, x_coordinate (32 bytes)]
     /// Uncompressed format: [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the input point is at infinity (invalid for SEC format).
     pub fn to_sec(&self, compressed: bool) -> Vec<u8> {
         let mut result = Vec::new();
 
@@ -116,6 +126,11 @@ impl PublicKey {
     /// Serialize the public key in compressed SEC format
     /// Returns a 33-byte Vec: [0x02/0x03, x_coordinate (32 bytes)]
     /// 0x02 if y is even, 0x03 if y is odd
+    ///
+    /// # Panics
+    ///
+    /// Panics if the input point is at infinity (invalid for SEC format).
+    /// The error string will indicate the specific reason why the input is invalid.
     #[allow(dead_code)]
     fn sec_compressed(&self) -> Vec<u8> {
         let mut result = Vec::new();
@@ -138,7 +153,13 @@ impl PublicKey {
     }
 
     /// Serialize the public key in uncompressed SEC format
+    ///
     /// Returns a 65-byte Vec: [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the input point is at infinity (invalid for SEC format).
+    /// The error string will indicate the specific reason why the input is invalid.
     #[allow(dead_code)]
     fn sec_uncompressed(&self) -> Vec<u8> {
         let mut result = Vec::new();
@@ -160,9 +181,15 @@ impl PublicKey {
         result
     }
 
-    /// Parse a SEC format public key (compressed or uncompressed)
-    /// Compressed format: 33 bytes [0x02/0x03, x_coordinate (32 bytes)]
-    /// Uncompressed format: 65 bytes [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    /// Parses a SEC format public key (compressed or uncompressed)
+    ///
+    /// This function checks the length of the input and delegates to either
+    /// `parse_compressed` or `parse_uncompressed` depending on the length.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input length is not 33 bytes (compressed) or 65 bytes (uncompressed).
+    /// The error string will indicate the specific reason why the input is invalid.
     pub fn parse(sec_bytes: &[u8]) -> Result<Self, &'static str> {
         match sec_bytes.len() {
             33 => Self::parse_compressed(sec_bytes),
@@ -174,7 +201,11 @@ impl PublicKey {
     }
 
     /// Parse an uncompressed SEC format public key
+    ///
     /// Format: [0x04, x_coordinate (32 bytes), y_coordinate (32 bytes)]
+    ///
+    /// Returns a `PublicKey` if the input is valid, otherwise returns an error.
+    /// The error string will indicate the specific reason why the input is invalid.
     fn parse_uncompressed(sec_bytes: &[u8]) -> Result<Self, &'static str> {
         if sec_bytes.len() != 65 {
             return Err("Invalid uncompressed SEC format: must be 65 bytes");
@@ -201,7 +232,11 @@ impl PublicKey {
     }
 
     /// Parse a compressed SEC format public key
-    /// Format: [0x02/0x03, x_coordinate (32 bytes)]
+    ///
+    /// Compressed format: [0x02/0x03, x_coordinate (32 bytes)]
+    ///
+    /// Returns a `PublicKey` if the input is valid, otherwise returns an error.
+    /// The error string will indicate the specific reason why the input is invalid.
     fn parse_compressed(sec_bytes: &[u8]) -> Result<Self, &'static str> {
         if sec_bytes.len() != 33 {
             return Err("Invalid compressed SEC format: must be 33 bytes");
@@ -242,5 +277,45 @@ impl PublicKey {
         }
 
         Ok(PublicKey { point })
+    }
+
+    /// Generate a Bitcoin address of the specified type
+    ///
+    /// Given a public key, it generates a Bitcoin address of the specified type (P2PKH)
+    /// and network (mainnet, testnet, or regtest).
+    ///
+    /// This function takes into account the version byte of the network and applies
+    /// HASH160 (SHA256 then RIPEMD160) to the compressed SEC format of the public key.
+    /// The resulting hash is then encoded with Base58Check (includes checksum).
+    ///
+    /// # Returns
+    ///
+    /// A string representing the Bitcoin address.
+    pub fn address(&self, address_type: AddressType, network: Network) -> String {
+        match address_type {
+            AddressType::P2PKH => {
+                // Get compressed SEC format of the public key
+                let compressed_sec = self.to_sec(true);
+
+                // Apply HASH160 (SHA256 then RIPEMD160)
+                let hash160_result = hash160(&compressed_sec);
+
+                // Add version byte based on network
+                let version_byte = network.p2pkh_version();
+                let mut versioned_payload = vec![version_byte];
+                versioned_payload.extend_from_slice(&hash160_result);
+
+                // Encode with Base58Check (includes checksum)
+                encode_base58_check(&versioned_payload)
+            }
+        }
+    }
+
+    /// Convenience method for generating P2PKH addresses.
+    ///
+    /// This method calls `address` with `AddressType::P2PKH` and the given network.
+    ///
+    pub fn p2pkh_address(&self, network: Network) -> String {
+        self.address(AddressType::P2PKH, network)
     }
 }
