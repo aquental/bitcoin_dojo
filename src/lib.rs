@@ -13,6 +13,7 @@ pub mod utils {
     pub mod base58;
     pub mod hash160;
     pub mod hash256;
+    pub mod varint;
 }
 
 // Re-export the main types and functions for easy access
