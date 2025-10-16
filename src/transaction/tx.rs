@@ -9,19 +9,29 @@ pub struct Tx {
     pub version: u32,
     pub tx_ins: Vec<TxInput>,
     pub tx_outs: Vec<TxOutput>,
+    pub locktime: u32,
 }
 
 impl Tx {
     /// Creates a new transaction with the given version, inputs, and outputs.
     ///
-    /// The version should be a little-endian 32-bit integer.
+    /// # Parameters
     ///
-    /// The inputs should be a vector of TxInput objects.
-    /// The outputs should be a vector of TxOutput objects.
+    /// * `version`: The version of the transaction. Should be a little-endian 32-bit integer.
+    /// * `tx_ins`: A vector of `TxInput` objects.
+    /// * `tx_outs`: A vector of `TxOutput` objects.
+    /// * `locktime`: The lock time of the transaction. Should be a little-endian 32-bit integer.
     ///
-    /// Returns a new transaction with the given version, inputs, and outputs.
-    pub fn new(version: u32, tx_ins: Vec<TxInput>, tx_outs: Vec<TxOutput>) -> Self {
-        Self { version, tx_ins, tx_outs }
+    /// # Returns
+    ///
+    /// A new `Tx` object with the given version, inputs, and outputs.
+    pub fn new(version: u32, tx_ins: Vec<TxInput>, tx_outs: Vec<TxOutput>, locktime: u32) -> Self {
+        Self {
+            version,
+            tx_ins,
+            tx_outs,
+            locktime,
+        }
     }
 
     /// Parses a transaction from a Read stream.
@@ -31,6 +41,9 @@ impl Tx {
     ///
     /// Then, reads a varint from the stream, which is the number of inputs.
     /// Each input is then parsed from the stream.
+    ///
+    /// Finally, reads a varint from the stream, which is the number of outputs.
+    /// Each output is then parsed from the stream.
     ///
     /// Returns a parsed transaction or a Box containing an error if the input is invalid or if the stream is exhausted.
     pub fn parse<R: Read>(mut reader: R) -> Result<Self, Box<dyn std::error::Error>> {
@@ -52,7 +65,7 @@ impl Tx {
         }
         // Parse the number of outputs (varint)
         let num_outputs = decode_varint(&mut reader)? as usize;
-        
+
         // Parse each output
         let mut tx_outs = Vec::with_capacity(num_outputs);
         for _ in 0..num_outputs {
@@ -60,6 +73,16 @@ impl Tx {
             tx_outs.push(tx_output);
         }
 
-        Ok(Self { version, tx_ins, tx_outs })
+        // Parse the locktime (final 4 bytes, little-endian)
+        let mut locktime_bytes = [0u8; 4];
+        reader.read_exact(&mut locktime_bytes)?;
+        let locktime = u32::from_le_bytes(locktime_bytes);
+
+        Ok(Self {
+            version,
+            tx_ins,
+            tx_outs,
+            locktime,
+        })
     }
 }

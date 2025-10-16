@@ -1,4 +1,4 @@
-use bitcoin_dojo::ecc::ecdsa::{Signature, sign, verify};
+use bitcoin_dojo::ecc::ecdsa::{sign, verify, Signature};
 #[cfg(test)]
 use bitcoin_dojo::ecc::keys::PrivateKey;
 use bitcoin_dojo::ecc::scalar::Scalar;
@@ -958,8 +958,11 @@ fn test_der_encoding_structure() {
             "Long form length should have more bytes"
         );
         let length_octets = (der_bytes[1] & 0x7f) as usize;
-        assert!(length_octets > 0 && length_octets <= 4, "Invalid length encoding");
-        
+        assert!(
+            length_octets > 0 && length_octets <= 4,
+            "Invalid length encoding"
+        );
+
         // Parse the actual length from the long form
         let mut length = 0usize;
         for i in 0..length_octets {
@@ -969,32 +972,65 @@ fn test_der_encoding_structure() {
     };
 
     // Verify the sequence length matches the actual content
-    let header_length = if der_bytes[1] < 0x80 { 2 } else { 2 + (der_bytes[1] & 0x7f) as usize };
-    assert_eq!(der_bytes.len(), header_length + seq_length, "Sequence length should match content");
+    let header_length = if der_bytes[1] < 0x80 {
+        2
+    } else {
+        2 + (der_bytes[1] & 0x7f) as usize
+    };
+    assert_eq!(
+        der_bytes.len(),
+        header_length + seq_length,
+        "Sequence length should match content"
+    );
 
     // Parse the two INTEGER elements properly
     let content_start = header_length;
-    assert!(content_start + 4 <= der_bytes.len(), "Should have space for at least two minimal integers");
+    assert!(
+        content_start + 4 <= der_bytes.len(),
+        "Should have space for at least two minimal integers"
+    );
 
     // First INTEGER
-    assert_eq!(der_bytes[content_start], 0x02, "First element should be INTEGER");
+    assert_eq!(
+        der_bytes[content_start], 0x02,
+        "First element should be INTEGER"
+    );
     let first_int_len = der_bytes[content_start + 1] as usize;
-    assert!(first_int_len > 0, "First integer should have non-zero length");
-    
+    assert!(
+        first_int_len > 0,
+        "First integer should have non-zero length"
+    );
+
     // Second INTEGER should start after first integer
     let second_int_start = content_start + 2 + first_int_len;
-    assert!(second_int_start + 2 <= der_bytes.len(), "Should have space for second integer header");
-    assert_eq!(der_bytes[second_int_start], 0x02, "Second element should be INTEGER");
-    
+    assert!(
+        second_int_start + 2 <= der_bytes.len(),
+        "Should have space for second integer header"
+    );
+    assert_eq!(
+        der_bytes[second_int_start], 0x02,
+        "Second element should be INTEGER"
+    );
+
     let second_int_len = der_bytes[second_int_start + 1] as usize;
-    assert!(second_int_len > 0, "Second integer should have non-zero length");
-    
+    assert!(
+        second_int_len > 0,
+        "Second integer should have non-zero length"
+    );
+
     // Verify total length matches
     let expected_end = second_int_start + 2 + second_int_len;
-    assert_eq!(der_bytes.len(), expected_end, "DER encoding should end exactly after second integer");
+    assert_eq!(
+        der_bytes.len(),
+        expected_end,
+        "DER encoding should end exactly after second integer"
+    );
 
     println!("DER structure verified: {} bytes total", der_bytes.len());
-    println!("First integer: {} bytes, Second integer: {} bytes", first_int_len, second_int_len);
+    println!(
+        "First integer: {} bytes, Second integer: {} bytes",
+        first_int_len, second_int_len
+    );
 }
 
 #[test]

@@ -51,6 +51,9 @@ fn test_parse_legacy_tx() {
     let script_pubkey1_hex = "76a91470d6734de69c1ac8913892f2df9be0e738d26c2d88ac";
     let expected_script_pubkey1 = decode(script_pubkey1_hex).expect("Invalid hex for script_pubkey1");
     assert_eq!(out1.script_pubkey, expected_script_pubkey1);
+
+    // Check the locktime
+    assert_eq!(tx.locktime, 0);
 }
 
 /*
