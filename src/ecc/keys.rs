@@ -61,8 +61,46 @@ impl PrivateKey {
     }
 
     /// Returns a reference to the scalar value of the private key.
+    ///
+    /// This value is the secret key used for signing transactions and generating public keys.
+    ///
+    /// Note that this value should not be shared with anyone, as it can be used to access and control the associated Bitcoin wallet.
     pub fn scalar(&self) -> &Scalar {
         &self.scalar
+    }
+
+    /// Convert private key to Wallet Import Format (WIF)
+    ///
+    /// WIF is a Base58Check encoded format for Bitcoin private keys
+    ///
+    /// `compressed`: if true, indicates the public key should be compressed
+    ///
+    /// # Arguments
+    ///
+    /// * `network`: The network to use for the WIF (mainnet, testnet, or regtest)
+    /// * `compressed`: Whether to use compressed SEC format (true) or uncompressed SEC format (false)
+    ///
+    /// # Returns
+    ///
+    /// A string representing the WIF private key
+    pub fn to_wif(&self, network: Network, compressed: bool) -> String {
+        // Get the version byte based on network
+        let version_byte = network.wif_version();
+
+        // Get the private key bytes (32 bytes)
+        let private_key_bytes = self.scalar.as_bytes();
+
+        // Build the payload
+        let mut payload = vec![version_byte];
+        payload.extend_from_slice(&private_key_bytes);
+
+        // If compressed, append 0x01 byte
+        if compressed {
+            payload.push(0x01);
+        }
+
+        // Encode with Base58Check
+        encode_base58_check(&payload)
     }
 }
 
