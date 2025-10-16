@@ -1,4 +1,4 @@
-use crate::{transaction::tx_output::TxOutput, utils::varint::decode_varint};
+use crate::{transaction::tx_output::TxOutput, utils::varint::{decode_varint, encode_varint}};
 /// src/transaction/tx.rs
 use std::io::Read;
 
@@ -84,5 +84,33 @@ impl Tx {
             tx_outs,
             locktime,
         })
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+        
+        // Serialize version (4 bytes, little-endian)
+        result.extend_from_slice(&self.version.to_le_bytes());
+        
+        // Serialize number of inputs as varint
+        result.extend_from_slice(&encode_varint(self.tx_ins.len() as u64));
+        
+        // Serialize each input
+        for tx_in in &self.tx_ins {
+            result.extend_from_slice(&tx_in.serialize());
+        }
+        
+        // Serialize number of outputs as varint
+        result.extend_from_slice(&encode_varint(self.tx_outs.len() as u64));
+        
+        // Serialize each output
+        for tx_out in &self.tx_outs {
+            result.extend_from_slice(&tx_out.serialize());
+        }
+        
+        // Serialize locktime (4 bytes, little-endian)
+        result.extend_from_slice(&self.locktime.to_le_bytes());
+        
+        result
     }
 }

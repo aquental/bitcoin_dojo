@@ -1,4 +1,4 @@
-use crate::utils::varint::decode_varint;
+use crate::utils::varint::{decode_varint, encode_varint};
 /// src/transaction/tx_output.rs
 use std::io::Read;
 
@@ -32,5 +32,19 @@ impl TxOutput {
             amount,
             script_pubkey,
         })
+    }
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+        
+        // Serialize amount (8 bytes, little-endian)
+        result.extend_from_slice(&self.amount.to_le_bytes());
+        
+        // Serialize script_pubkey length as varint
+        result.extend_from_slice(&encode_varint(self.script_pubkey.len() as u64));
+        
+        // Serialize script_pubkey bytes
+        result.extend_from_slice(&self.script_pubkey);
+        
+        result
     }
 }

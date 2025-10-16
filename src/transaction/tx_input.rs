@@ -1,4 +1,4 @@
-use crate::utils::varint::decode_varint;
+use crate::utils::varint::{decode_varint, encode_varint};
 /// src/transaction/tx_input.rs
 use std::io::Read;
 
@@ -46,5 +46,26 @@ impl TxInput {
             script_sig,
             sequence,
         })
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+        
+        // Serialize previous transaction ID (32 bytes, already in little-endian)
+        result.extend_from_slice(&self.prev_tx_id);
+        
+        // Serialize previous output index (4 bytes, little-endian)
+        result.extend_from_slice(&self.prev_index.to_le_bytes());
+        
+        // Serialize script_sig length as varint
+        result.extend_from_slice(&encode_varint(self.script_sig.len() as u64));
+        
+        // Serialize script_sig bytes
+        result.extend_from_slice(&self.script_sig);
+        
+        // Serialize sequence number (4 bytes, little-endian)
+        result.extend_from_slice(&self.sequence.to_le_bytes());
+        
+        result
     }
 }
