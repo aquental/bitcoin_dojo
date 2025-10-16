@@ -19,6 +19,7 @@ pub mod utils {
 pub mod transaction {
     pub mod tx;
     pub mod tx_input;
+    pub mod tx_output;
 }
 
 // Re-export the main types and functions for easy access

@@ -1,4 +1,4 @@
-use crate::utils::varint::decode_varint;
+use crate::{transaction::tx_output::TxOutput, utils::varint::decode_varint};
 /// src/transaction/tx.rs
 use std::io::Read;
 
@@ -8,18 +8,20 @@ use crate::transaction::tx_input::TxInput;
 pub struct Tx {
     pub version: u32,
     pub tx_ins: Vec<TxInput>,
+    pub tx_outs: Vec<TxOutput>,
 }
 
 impl Tx {
-    /// Creates a new transaction with the given version and inputs.
+    /// Creates a new transaction with the given version, inputs, and outputs.
     ///
     /// The version should be a little-endian 32-bit integer.
     ///
     /// The inputs should be a vector of TxInput objects.
+    /// The outputs should be a vector of TxOutput objects.
     ///
-    /// Returns a new transaction with the given version and inputs.
-    pub fn new(version: u32, tx_ins: Vec<TxInput>) -> Self {
-        Self { version, tx_ins }
+    /// Returns a new transaction with the given version, inputs, and outputs.
+    pub fn new(version: u32, tx_ins: Vec<TxInput>, tx_outs: Vec<TxOutput>) -> Self {
+        Self { version, tx_ins, tx_outs }
     }
 
     /// Parses a transaction from a Read stream.
@@ -48,7 +50,16 @@ impl Tx {
             let tx_input = TxInput::parse(&mut reader)?;
             tx_ins.push(tx_input);
         }
+        // Parse the number of outputs (varint)
+        let num_outputs = decode_varint(&mut reader)? as usize;
+        
+        // Parse each output
+        let mut tx_outs = Vec::with_capacity(num_outputs);
+        for _ in 0..num_outputs {
+            let tx_output = TxOutput::parse(&mut reader)?;
+            tx_outs.push(tx_output);
+        }
 
-        Ok(Self { version, tx_ins })
+        Ok(Self { version, tx_ins, tx_outs })
     }
 }

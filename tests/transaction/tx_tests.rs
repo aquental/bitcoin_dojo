@@ -34,6 +34,23 @@ fn test_parse_legacy_tx() {
     assert_eq!(tx_in.script_sig, script_sig);
     
     assert_eq!(tx_in.sequence, 0xffffffff);
+
+    // Check the transaction outputs
+    assert_eq!(tx.tx_outs.len(), 2);
+
+    // First output
+    let out0 = &tx.tx_outs[0];
+    assert_eq!(out0.amount, 4996000000);
+    let script_pubkey0_hex = "76a9146f34d3811aded1df870359f311c2a11a015e945388ac";
+    let expected_script_pubkey0 = decode(script_pubkey0_hex).expect("Invalid hex for script_pubkey0");
+    assert_eq!(out0.script_pubkey, expected_script_pubkey0);
+
+    // Second output
+    let out1 = &tx.tx_outs[1];
+    assert_eq!(out1.amount, 10000000000);
+    let script_pubkey1_hex = "76a91470d6734de69c1ac8913892f2df9be0e738d26c2d88ac";
+    let expected_script_pubkey1 = decode(script_pubkey1_hex).expect("Invalid hex for script_pubkey1");
+    assert_eq!(out1.script_pubkey, expected_script_pubkey1);
 }
 
 /*
