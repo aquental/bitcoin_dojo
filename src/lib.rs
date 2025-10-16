@@ -16,6 +16,10 @@ pub mod utils {
     pub mod varint;
 }
 
+pub mod transaction {
+    pub mod tx;
+}
+
 // Re-export the main types and functions for easy access
 pub use ecc::curve::Point;
 pub use ecc::ecdsa::{Signature, sign, verify};
