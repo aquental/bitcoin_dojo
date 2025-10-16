@@ -4,7 +4,7 @@ use bitcoin_dojo::transaction::tx::Tx;
 use hex::decode;
 
 #[test]
-fn test_parse_legacy_tx_version() {
+fn test_parse_legacy_tx() {
 
     // Raw legacy transaction (hex string)
     let raw_tx_hex = "010000000110ddd830599b17cc690535f7df28a84466eaca3c22f0d55b79023b6570f4fbc5010000008b483045022100e6186d6f344ce4df46b2e15d87093d34edbf5b50462b6b45f9bd499a6a62fbc4022055f56a1c4a24ea6be61564593c4196b47478a25cf596c1baf59f5a9a229b637c014104a41e997b6656bc4f5dd1f9b9df3b4884cbec254d3b71d928587695b0df0a80417432f4ca6276bc620b1f04308e82e70015a40f597d8260912f801e4b62ab089effffffff0200e9c829010000001976a9146f34d3811aded1df870359f311c2a11a015e945388ac00e40b54020000001976a91470d6734de69c1ac8913892f2df9be0e738d26c2d88ac00000000";
@@ -16,6 +16,24 @@ fn test_parse_legacy_tx_version() {
 
     // Check the transaction version
     assert_eq!(tx.version, 1);
+
+    // Check the transaction input
+    assert_eq!(tx.tx_ins.len(), 1);
+    let tx_in = &tx.tx_ins[0];
+
+    let prev_tx_id_hex = "10ddd830599b17cc690535f7df28a84466eaca3c22f0d55b79023b6570f4fbc5";
+    let expected_prev_tx_id = decode(prev_tx_id_hex).expect("Invalid hex for prev_tx_id");
+    // expected_prev_tx_id.reverse();
+
+    assert_eq!(tx_in.prev_tx_id, expected_prev_tx_id.as_slice());
+
+    assert_eq!(tx_in.prev_index, 1);
+
+    let script_sig_hex = "483045022100e6186d6f344ce4df46b2e15d87093d34edbf5b50462b6b45f9bd499a6a62fbc4022055f56a1c4a24ea6be61564593c4196b47478a25cf596c1baf59f5a9a229b637c014104a41e997b6656bc4f5dd1f9b9df3b4884cbec254d3b71d928587695b0df0a80417432f4ca6276bc620b1f04308e82e70015a40f597d8260912f801e4b62ab089e";
+    let script_sig = decode(script_sig_hex).expect("Invalid hex for script_sig");
+    assert_eq!(tx_in.script_sig, script_sig);
+    
+    assert_eq!(tx_in.sequence, 0xffffffff);
 }
 
 /*

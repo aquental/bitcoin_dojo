@@ -3,10 +3,10 @@ mod tests {
     use bitcoin_dojo::ecc::curve::Point;
     use bitcoin_dojo::ecc::keys::{PrivateKey, PublicKey};
     use bitcoin_dojo::ecc::scalar::Scalar;
-    use num_bigint::BigUint;
+    use bitcoin_dojo::hash160;
     use bitcoin_dojo::utils::address_types::{AddressType, Network};
     use bitcoin_dojo::utils::base58::encode_base58_check;
-    use bitcoin_dojo::hash160;
+    use num_bigint::BigUint;
 
     #[test]
     fn test_private_key_new() {
@@ -906,14 +906,16 @@ mod tests {
 
         // Test mainnet address
         let mainnet_address = public_key.p2pkh_address(Network::Mainnet);
-        
+
         // Should be a valid Base58 string
         assert!(!mainnet_address.is_empty());
-        assert!(mainnet_address.chars().all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
-        
+        assert!(mainnet_address
+            .chars()
+            .all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
+
         // Mainnet P2PKH addresses typically start with '1'
         assert!(mainnet_address.starts_with('1'));
-        
+
         // Should be reasonable length (25-34 characters typically)
         assert!(mainnet_address.len() >= 25 && mainnet_address.len() <= 34);
     }
@@ -927,13 +929,13 @@ mod tests {
 
         // Test testnet address
         let testnet_address = public_key.p2pkh_address(Network::Testnet);
-        
+
         // Should be a valid Base58 string
         assert!(!testnet_address.is_empty());
-        
+
         // Testnet P2PKH addresses typically start with 'm' or 'n'
         assert!(testnet_address.starts_with('m') || testnet_address.starts_with('n'));
-        
+
         // Should be reasonable length
         assert!(testnet_address.len() >= 25 && testnet_address.len() <= 34);
     }
@@ -948,7 +950,7 @@ mod tests {
         // Test that address() method with P2PKH type matches p2pkh_address()
         let address_via_method = public_key.address(AddressType::P2PKH, Network::Mainnet);
         let address_via_p2pkh = public_key.p2pkh_address(Network::Mainnet);
-        
+
         assert_eq!(address_via_method, address_via_p2pkh);
     }
 
@@ -962,9 +964,9 @@ mod tests {
         // Same public key should always generate the same address
         let address1 = public_key.p2pkh_address(Network::Mainnet);
         let address2 = public_key.p2pkh_address(Network::Mainnet);
-        
+
         assert_eq!(address1, address2);
-        
+
         // Test with address() method as well
         let address3 = public_key.address(AddressType::P2PKH, Network::Mainnet);
         assert_eq!(address1, address3);
@@ -974,16 +976,16 @@ mod tests {
     fn test_different_keys_different_addresses() {
         let scalar1 = Scalar::new(BigUint::from(111111u32));
         let scalar2 = Scalar::new(BigUint::from(222222u32));
-        
+
         let private_key1 = PrivateKey::from_scalar(scalar1);
         let private_key2 = PrivateKey::from_scalar(scalar2);
-        
+
         let public_key1 = private_key1.public_key();
         let public_key2 = private_key2.public_key();
-        
+
         let address1 = public_key1.p2pkh_address(Network::Mainnet);
         let address2 = public_key2.p2pkh_address(Network::Mainnet);
-        
+
         assert_ne!(address1, address2);
     }
 
@@ -996,10 +998,10 @@ mod tests {
 
         let mainnet_address = public_key.p2pkh_address(Network::Mainnet);
         let testnet_address = public_key.p2pkh_address(Network::Testnet);
-        
+
         // Should be different addresses
         assert_ne!(mainnet_address, testnet_address);
-        
+
         // Check prefixes
         assert!(mainnet_address.starts_with('1'));
         assert!(testnet_address.starts_with('m') || testnet_address.starts_with('n'));
@@ -1013,7 +1015,7 @@ mod tests {
         let public_key = private_key.public_key();
 
         let address = public_key.p2pkh_address(Network::Mainnet);
-        
+
         // Should be a valid address
         assert!(!address.is_empty());
         assert!(address.starts_with('1'));
@@ -1029,17 +1031,17 @@ mod tests {
 
             let mainnet_address = public_key.p2pkh_address(Network::Mainnet);
             let testnet_address = public_key.p2pkh_address(Network::Testnet);
-            
+
             // Mainnet addresses
             assert!(!mainnet_address.is_empty());
             assert!(mainnet_address.starts_with('1'));
             assert!(mainnet_address.len() >= 25 && mainnet_address.len() <= 34);
-            
+
             // Testnet addresses
             assert!(!testnet_address.is_empty());
             assert!(testnet_address.starts_with('m') || testnet_address.starts_with('n'));
             assert!(testnet_address.len() >= 25 && testnet_address.len() <= 34);
-            
+
             // Should be different
             assert_ne!(mainnet_address, testnet_address);
         }
@@ -1055,14 +1057,14 @@ mod tests {
 
         // Generate address
         let address = public_key.p2pkh_address(Network::Mainnet);
-        
+
         // Manually create address using compressed SEC format
         let compressed_sec = public_key.to_sec(true);
         let hash160_result = hash160(&compressed_sec);
         let mut versioned_hash = vec![0x00]; // Mainnet P2PKH version
         versioned_hash.extend_from_slice(&hash160_result);
         let expected_address = encode_base58_check(&versioned_hash);
-        
+
         assert_eq!(address, expected_address);
     }
 
@@ -1083,12 +1085,27 @@ mod tests {
 
             let mainnet_address = public_key.p2pkh_address(Network::Mainnet);
             let testnet_address = public_key.p2pkh_address(Network::Testnet);
-            
-            assert!(!mainnet_address.is_empty(), "Mainnet address should not be empty for test case {}", i);
-            assert!(!testnet_address.is_empty(), "Testnet address should not be empty for test case {}", i);
-            assert!(mainnet_address.starts_with('1'), "Mainnet address should start with '1' for test case {}", i);
-            assert!(testnet_address.starts_with('m') || testnet_address.starts_with('n'), 
-                    "Testnet address should start with 'm' or 'n' for test case {}", i);
+
+            assert!(
+                !mainnet_address.is_empty(),
+                "Mainnet address should not be empty for test case {}",
+                i
+            );
+            assert!(
+                !testnet_address.is_empty(),
+                "Testnet address should not be empty for test case {}",
+                i
+            );
+            assert!(
+                mainnet_address.starts_with('1'),
+                "Mainnet address should start with '1' for test case {}",
+                i
+            );
+            assert!(
+                testnet_address.starts_with('m') || testnet_address.starts_with('n'),
+                "Testnet address should start with 'm' or 'n' for test case {}",
+                i
+            );
         }
     }
 
@@ -1104,15 +1121,19 @@ mod tests {
 
             // Generate address using the method
             let address = public_key.p2pkh_address(Network::Mainnet);
-            
+
             // Generate address manually using SEC format
             let sec_bytes = public_key.to_sec(true); // Should use compressed
             let hash160_result = hash160(&sec_bytes);
             let mut versioned_hash = vec![0x00]; // Mainnet version
             versioned_hash.extend_from_slice(&hash160_result);
             let manual_address = encode_base58_check(&versioned_hash);
-            
-            assert_eq!(address, manual_address, "Address should match manual calculation for value {}", val);
+
+            assert_eq!(
+                address, manual_address,
+                "Address should match manual calculation for value {}",
+                val
+            );
         }
     }
 
@@ -1121,16 +1142,18 @@ mod tests {
         let scalar_value = BigUint::from(12345u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         let wif = private_key.to_wif(Network::Mainnet, false);
-        
+
         // Should be a valid Base58 string
         assert!(!wif.is_empty());
-        assert!(wif.chars().all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
-        
+        assert!(wif
+            .chars()
+            .all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
+
         // Mainnet uncompressed WIF should start with '5'
         assert!(wif.starts_with('5'));
-        
+
         // Should be correct length for uncompressed WIF (51 characters typically)
         assert_eq!(wif.len(), 51);
     }
@@ -1140,16 +1163,18 @@ mod tests {
         let scalar_value = BigUint::from(54321u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         let wif = private_key.to_wif(Network::Mainnet, true);
-        
+
         // Should be a valid Base58 string
         assert!(!wif.is_empty());
-        assert!(wif.chars().all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
-        
+        assert!(wif
+            .chars()
+            .all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c)));
+
         // Mainnet compressed WIF should start with 'K' or 'L'
         assert!(wif.starts_with('K') || wif.starts_with('L'));
-        
+
         // Should be correct length for compressed WIF (52 characters typically)
         assert_eq!(wif.len(), 52);
     }
@@ -1159,12 +1184,12 @@ mod tests {
         let scalar_value = BigUint::from(99999u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         // Test uncompressed testnet WIF
         let wif_uncompressed = private_key.to_wif(Network::Testnet, false);
         assert!(wif_uncompressed.starts_with('9'));
         assert_eq!(wif_uncompressed.len(), 51);
-        
+
         // Test compressed testnet WIF
         let wif_compressed = private_key.to_wif(Network::Testnet, true);
         assert!(wif_compressed.starts_with('c'));
@@ -1176,12 +1201,12 @@ mod tests {
         let scalar_value = BigUint::from(777777u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         // Same private key should always generate the same WIF
         let wif1 = private_key.to_wif(Network::Mainnet, false);
         let wif2 = private_key.to_wif(Network::Mainnet, false);
         assert_eq!(wif1, wif2);
-        
+
         // Same for compressed
         let wif_compressed1 = private_key.to_wif(Network::Mainnet, true);
         let wif_compressed2 = private_key.to_wif(Network::Mainnet, true);
@@ -1192,13 +1217,13 @@ mod tests {
     fn test_wif_different_keys_different_wif() {
         let scalar1 = Scalar::new(BigUint::from(111111u32));
         let scalar2 = Scalar::new(BigUint::from(222222u32));
-        
+
         let private_key1 = PrivateKey::from_scalar(scalar1);
         let private_key2 = PrivateKey::from_scalar(scalar2);
-        
+
         let wif1 = private_key1.to_wif(Network::Mainnet, false);
         let wif2 = private_key2.to_wif(Network::Mainnet, false);
-        
+
         assert_ne!(wif1, wif2);
     }
 
@@ -1207,17 +1232,17 @@ mod tests {
         let scalar_value = BigUint::from(888888u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         let wif_uncompressed = private_key.to_wif(Network::Mainnet, false);
         let wif_compressed = private_key.to_wif(Network::Mainnet, true);
-        
+
         // Should be different
         assert_ne!(wif_uncompressed, wif_compressed);
-        
+
         // Should have different lengths
         assert_eq!(wif_uncompressed.len(), 51);
         assert_eq!(wif_compressed.len(), 52);
-        
+
         // Should have different prefixes
         assert!(wif_uncompressed.starts_with('5'));
         assert!(wif_compressed.starts_with('K') || wif_compressed.starts_with('L'));
@@ -1228,13 +1253,13 @@ mod tests {
         let scalar_value = BigUint::from(333333u32);
         let scalar = Scalar::new(scalar_value);
         let private_key = PrivateKey::from_scalar(scalar);
-        
+
         let mainnet_wif = private_key.to_wif(Network::Mainnet, false);
         let testnet_wif = private_key.to_wif(Network::Testnet, false);
-        
+
         // Should be different
         assert_ne!(mainnet_wif, testnet_wif);
-        
+
         // Should have different prefixes
         assert!(mainnet_wif.starts_with('5'));
         assert!(testnet_wif.starts_with('9'));
@@ -1245,14 +1270,14 @@ mod tests {
         // Test with private key = 1 (generator point)
         let scalar_one = Scalar::new(BigUint::from(1u32));
         let private_key = PrivateKey::from_scalar(scalar_one);
-        
+
         let wif_uncompressed = private_key.to_wif(Network::Mainnet, false);
         let wif_compressed = private_key.to_wif(Network::Mainnet, true);
-        
+
         // Should be valid WIF formats
         assert!(wif_uncompressed.starts_with('5'));
         assert!(wif_compressed.starts_with('K') || wif_compressed.starts_with('L'));
-        
+
         // Should have correct lengths
         assert_eq!(wif_uncompressed.len(), 51);
         assert_eq!(wif_compressed.len(), 52);
@@ -1263,18 +1288,20 @@ mod tests {
         // Test WIF generation with random keys
         for _ in 0..5 {
             let private_key = PrivateKey::new();
-            
+
             let wif_mainnet_uncompressed = private_key.to_wif(Network::Mainnet, false);
             let wif_mainnet_compressed = private_key.to_wif(Network::Mainnet, true);
             let wif_testnet_uncompressed = private_key.to_wif(Network::Testnet, false);
             let wif_testnet_compressed = private_key.to_wif(Network::Testnet, true);
-            
+
             // Verify prefixes
             assert!(wif_mainnet_uncompressed.starts_with('5'));
-            assert!(wif_mainnet_compressed.starts_with('K') || wif_mainnet_compressed.starts_with('L'));
+            assert!(
+                wif_mainnet_compressed.starts_with('K') || wif_mainnet_compressed.starts_with('L')
+            );
             assert!(wif_testnet_uncompressed.starts_with('9'));
             assert!(wif_testnet_compressed.starts_with('c'));
-            
+
             // Verify lengths
             assert_eq!(wif_mainnet_uncompressed.len(), 51);
             assert_eq!(wif_mainnet_compressed.len(), 52);
@@ -1282,5 +1309,4 @@ mod tests {
             assert_eq!(wif_testnet_compressed.len(), 52);
         }
     }
-
 }
