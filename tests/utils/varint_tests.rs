@@ -17,13 +17,22 @@ fn test_encode_two_byte() {
 #[test]
 fn test_encode_four_byte() {
     assert_eq!(encode_varint(65536), vec![0xFE, 0x00, 0x00, 0x01, 0x00]);
-    assert_eq!(encode_varint(4294967295), vec![0xFE, 0xFF, 0xFF, 0xFF, 0xFF]);
+    assert_eq!(
+        encode_varint(4294967295),
+        vec![0xFE, 0xFF, 0xFF, 0xFF, 0xFF]
+    );
 }
 
 #[test]
 fn test_encode_eight_byte() {
-    assert_eq!(encode_varint(4294967296), vec![0xFF, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]);
-    assert_eq!(encode_varint(18446744073709551615), vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+    assert_eq!(
+        encode_varint(4294967296),
+        vec![0xFF, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]
+    );
+    assert_eq!(
+        encode_varint(18446744073709551615),
+        vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    );
 }
 
 #[test]
@@ -65,19 +74,19 @@ fn test_decode_errors() {
     // Empty slice
     let mut cursor = Cursor::new(&[]);
     assert!(decode_varint(&mut cursor).is_err());
-    
+
     // Insufficient bytes for 2-byte varint
     let mut cursor = Cursor::new(&[0xFD]);
     assert!(decode_varint(&mut cursor).is_err());
     let mut cursor = Cursor::new(&[0xFD, 0x01]);
     assert!(decode_varint(&mut cursor).is_err());
-    
+
     // Insufficient bytes for 4-byte varint
     let mut cursor = Cursor::new(&[0xFE]);
     assert!(decode_varint(&mut cursor).is_err());
     let mut cursor = Cursor::new(&[0xFE, 0x01, 0x02, 0x03]);
     assert!(decode_varint(&mut cursor).is_err());
-    
+
     // Insufficient bytes for 8-byte varint
     let mut cursor = Cursor::new(&[0xFF]);
     assert!(decode_varint(&mut cursor).is_err());
@@ -90,11 +99,11 @@ fn test_non_canonical_encoding() {
     // Value 252 encoded as 2-byte (should be single byte)
     let mut cursor = Cursor::new(&[0xFD, 0xFC, 0x00]);
     assert!(decode_varint(&mut cursor).is_err());
-    
+
     // Value 65535 encoded as 4-byte (should be 2-byte)
     let mut cursor = Cursor::new(&[0xFE, 0xFF, 0xFF, 0x00, 0x00]);
     assert!(decode_varint(&mut cursor).is_err());
-    
+
     // Value 4294967295 encoded as 8-byte (should be 4-byte)
     let mut cursor = Cursor::new(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00]);
     assert!(decode_varint(&mut cursor).is_err());
@@ -115,10 +124,20 @@ fn test_varint_length() {
 #[test]
 fn test_encode_decode_roundtrip() {
     let test_values = vec![
-        0, 1, 252, 253, 254, 255, 256, 65535, 65536, 
-        4294967295, 4294967296, 18446744073709551615
+        0,
+        1,
+        252,
+        253,
+        254,
+        255,
+        256,
+        65535,
+        65536,
+        4294967295,
+        4294967296,
+        18446744073709551615,
     ];
-    
+
     for value in test_values {
         let encoded = encode_varint(value);
         let mut cursor = Cursor::new(&encoded);

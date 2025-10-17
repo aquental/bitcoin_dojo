@@ -1,4 +1,8 @@
-use crate::{transaction::tx_output::TxOutput, utils::varint::{decode_varint, encode_varint}};
+use crate::{
+    transaction::tx_output::TxOutput,
+    utils::hash256::hash256,
+    utils::varint::{decode_varint, encode_varint},
+};
 /// src/transaction/tx.rs
 use std::io::Read;
 
@@ -86,31 +90,56 @@ impl Tx {
         })
     }
 
+    /// Serializes a transaction into a byte vector.
+    ///
+    /// The serialized transaction is in the following format:
+    ///
+    /// * Version (4 bytes, little-endian)
+    /// * Number of inputs as varint
+    /// * Each input serialized
+    /// * Number of outputs as varint
+    /// * Each output serialized
+    /// * Locktime (4 bytes, little-endian)
     pub fn serialize(&self) -> Vec<u8> {
         let mut result = Vec::new();
-        
+
         // Serialize version (4 bytes, little-endian)
         result.extend_from_slice(&self.version.to_le_bytes());
-        
+
         // Serialize number of inputs as varint
         result.extend_from_slice(&encode_varint(self.tx_ins.len() as u64));
-        
+
         // Serialize each input
         for tx_in in &self.tx_ins {
             result.extend_from_slice(&tx_in.serialize());
         }
-        
+
         // Serialize number of outputs as varint
         result.extend_from_slice(&encode_varint(self.tx_outs.len() as u64));
-        
+
         // Serialize each output
         for tx_out in &self.tx_outs {
             result.extend_from_slice(&tx_out.serialize());
         }
-        
+
         // Serialize locktime (4 bytes, little-endian)
         result.extend_from_slice(&self.locktime.to_le_bytes());
-        
+
         result
+    }
+
+    /// Returns a string representation of the transaction ID, which is the double SHA-256 hash of the transaction in little-endian order.
+    pub fn id(&self) -> String {
+        // little endian
+        let hash_bytes = self.hash();
+        hex::encode(hash_bytes)
+    }
+
+    /// Returns the double SHA-256 hash of the transaction, in little-endian order.
+    /// This is commonly used in Bitcoin as the transaction ID.
+    fn hash(&self) -> Vec<u8> {
+        let serialized = self.serialize();
+        let hash_array = hash256(&serialized);
+        hash_array.to_vec()
     }
 }
